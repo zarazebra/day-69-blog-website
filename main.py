@@ -81,7 +81,8 @@ def admin_only(f):
 
 @app.route('/')
 def get_all_posts():
-    posts = BlogPost.query.all()
+    #posts = BlogPost.query.all()
+    posts = db.session.execute(db.select(BlogPost)).scalars().all()
     return render_template("index.html", all_posts=posts)
 
 
@@ -134,7 +135,7 @@ def logout():
 @app.route("/post/<int:post_id>", methods=["GET", "POST"])
 def show_post(post_id):
     form = CommentForm()
-    requested_post = BlogPost.query.get(post_id)
+    requested_post = db.session.execute(db.select(BlogPost).where(BlogPost.id == post_id)).scalar()
     if form.validate_on_submit():
         if current_user.is_authenticated:
             new_comment = Comment(
@@ -182,7 +183,7 @@ def add_new_post():
 @app.route("/edit-post/<int:post_id>", methods=["GET", "POST"])
 @admin_only
 def edit_post(post_id):
-    post = BlogPost.query.get(post_id)
+    post = db.session.execute(db.select(BlogPost).where(BlogPost.id == post_id)).scalar()
     edit_form = CreatePostForm(
         title=post.title,
         subtitle=post.subtitle,
@@ -194,7 +195,7 @@ def edit_post(post_id):
         post.title = edit_form.title.data
         post.subtitle = edit_form.subtitle.data
         post.img_url = edit_form.img_url.data
-        post.author = edit_form.author.data
+        post.author_id = current_user.id
         post.body = edit_form.body.data
         db.session.commit()
         return redirect(url_for("show_post", post_id=post.id))
@@ -205,7 +206,7 @@ def edit_post(post_id):
 @app.route("/delete/<int:post_id>")
 @admin_only
 def delete_post(post_id):
-    post_to_delete = BlogPost.query.get(post_id)
+    post_to_delete = db.session.execute(db.select(BlogPost).where(BlogPost.id == post_id)).scalar()
     db.session.delete(post_to_delete)
     db.session.commit()
     return redirect(url_for('get_all_posts'))
