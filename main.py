@@ -1,4 +1,5 @@
 import os
+import smtplib
 from flask import Flask, render_template, redirect, url_for, flash, request, abort
 from flask_bootstrap import Bootstrap5
 from flask_ckeditor import CKEditor
@@ -22,6 +23,9 @@ gravatar = Gravatar(app)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL_2", "sqlite:///blog.db")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+
+OWN_EMAIL = os.environ.get("MY_EMAIL")
+OWN_PASSWORD = os.environ.get("MY_PASSWORD")
 
 
 # CONFIGURE TABLES
@@ -81,7 +85,6 @@ def admin_only(f):
 
 @app.route('/')
 def get_all_posts():
-    #posts = BlogPost.query.all()
     posts = db.session.execute(db.select(BlogPost)).scalars().all()
     return render_template("index.html", all_posts=posts)
 
@@ -156,9 +159,22 @@ def about():
     return render_template("about.html")
 
 
-@app.route("/contact")
+@app.route("/contact", methods=["GET", "POST"])
 def contact():
+    if request.method == "POST":
+        data = request.form
+        send_email(data["name"], data["email"], data["phone"], data["message"])
+        flash("Your email has been sent successfully. I will get back to you shortly.")
+        return redirect(url_for("contact"))
     return render_template("contact.html")
+
+
+def send_email(name, email, phone, message):
+    email_message = f"Subject:New Message\n\nName: {name}\nEmail: {email}\nPhone: {phone}\nMessage:{message}"
+    with smtplib.SMTP("smtp.gmail.com") as connection:
+        connection.starttls()
+        connection.login(OWN_EMAIL, OWN_PASSWORD)
+        connection.sendmail(OWN_EMAIL, OWN_EMAIL, email_message)
 
 
 @app.route("/new-post", methods=["GET", "POST"])
